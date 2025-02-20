@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import validator from 'validator';
 
 // ==== Type Definitions, feel free to add or modify ==========================
 interface cookbookEntry {
@@ -45,8 +46,18 @@ app.post("/parse", (req:Request, res:Response) => {
 // [TASK 1] ====================================================================
 // Takes in a recipeName and returns it in a form that 
 const parse_handwriting = (recipeName: string): string | null => {
-  // TODO: implement me
-  return recipeName
+  let stringRes: string = "";
+  for (let i = 0; i < recipeName.length; i++) {
+    const c: string = recipeName[i];
+    if (c == '-' || c == '_') stringRes += ' ';
+    else if (c != ' ' && !validator.isAlpha(c)) continue;
+    else if (stringRes[stringRes.length - 1] == ' ' || i == 0) stringRes += c.toUpperCase();
+    else stringRes += c.toLowerCase();
+  }
+  stringRes = stringRes.split(' ').filter(word => word !== '').join(' ');
+
+  if (!stringRes) return null;
+  return stringRes;
 }
 
 // [TASK 2] ====================================================================
