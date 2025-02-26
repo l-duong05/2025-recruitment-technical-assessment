@@ -16,10 +16,16 @@ interface recipe extends cookbookEntry {
   requiredItems: requiredItem[];
 }
 
-
 interface ingredient extends cookbookEntry {
   cookTime: number;
 }
+
+interface summary {
+  name: string;
+  cookTime: number;
+  ingredients: requiredItem[];
+}
+
 
 // =============================================================================a
 // ==== HTTP Endpoint Stubs ====================================================
@@ -28,7 +34,7 @@ const app = express();
 app.use(express.json());
 
 // Store your recipes here!
-const cookbook: cookbookEntry[] = [];
+const cookbook: any[] = [];
 
 // Task 1 helper (don't touch)
 app.post("/parse", (req:Request, res:Response) => {
@@ -72,9 +78,7 @@ app.post("/entry", (req:Request, res:Response) => {
   }
 
   // check if name exists
-  for (let i = 0; i < cookbook.length; i++) {
-    if (cookbook[i].name === entry.name) return res.status(400).send();
-  }
+  if (isInCookbook(entry.name)) return res.status(400).send();
 
   let resEntry: recipe | ingredient;
   if (entry.type === "ingredient") {
@@ -95,13 +99,80 @@ app.post("/entry", (req:Request, res:Response) => {
   return res.status(200).send();
 });
 
+function isInCookbook(s: string) {
+  for (let i = 0; i < cookbook.length; i++) {
+    if (cookbook[i].name === s) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // [TASK 3] ====================================================================
 // Endpoint that returns a summary of a recipe that corresponds to a query name
 app.get("/summary", (req:Request, res:Request) => {
-  // TODO: implement me
-  res.status(400).send("not yet implemented!")
+  const q = req.query.name as string;
 
+  // check in cookbook and is a recipe
+  let inBook = false;
+  let recip: recipe;
+  let recipeRes: summary = {
+    name: q,
+    cookTime: 0,
+    ingredients: []
+  };
+
+  for (let i = 0; i < cookbook.length; i++) {
+    if (cookbook[i].name === q && cookbook[i].type === "recipe") {
+      inBook = true;
+      recip = cookbook[i];
+    }
+  }
+  if (!inBook) return res.status(400).send();
+
+  // checking if reqItems are valid
+  if (!checkRequiresRec(recip, recipeRes, q)) return res.status(400).send();
+
+  return res.status(200).json(recipeRes);
 });
+
+function hasIngredient(s: string, ingreds: requiredItem[]): number {
+  for (let i = 0; i < ingreds.length; i++) {
+    if (ingreds[i].name === s) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function checkRequiresRec(recip: recipe, recipeRes: summary, name: string): boolean {
+  for (let i = 0; i < recip.requiredItems.length; i++) {
+    // check item is valid (in cookbook)
+    let inBook = false;
+    let item: any;
+    for (let j = 0; j < cookbook.length; j++) {
+      if (cookbook[j].name === name) {
+        inBook = true;
+        item = cookbook[j];
+      }
+    }
+    if (!inBook) return false;
+
+    if (item.type === "ingredient") {
+      let index: number = hasIngredient(item.name, recipeRes.ingredients);
+      // if ingredient already exists, increment
+      if (index !== -1) recipeRes.ingredients[index].quantity++;
+      else {
+        recipeRes.ingredients.push({ name: item.name, quantity: 1 });
+      }
+      recipeRes.cookTime += item.cookTime;
+    } else {
+      // keep checking if it is a recipe
+      if (!checkRequiresRec(item, recipeRes, recip.requiredItems[i].name)) return false;
+    }
+    return true;
+  }
+}
 
 // =============================================================================
 // ==== DO NOT TOUCH ===========================================================
