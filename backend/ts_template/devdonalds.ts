@@ -100,12 +100,7 @@ app.post("/entry", (req:Request, res:Response) => {
 });
 
 function isInCookbook(s: string) {
-  for (let i = 0; i < cookbook.length; i++) {
-    if (cookbook[i].name === s) {
-      return true;
-    }
-  }
-  return false;
+  return cookbook.find(entry => entry.name === s);
 }
 
 // [TASK 3] ====================================================================
